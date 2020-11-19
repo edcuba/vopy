@@ -7,3 +7,5 @@ cd data
 curl http://rpg.ifi.uzh.ch/docs/teaching/2016/parking.zip --output parking.zip
 unzip parking.zip
 rm parking.zip
+
+# TODO: remove commas from K.txt
