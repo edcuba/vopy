@@ -1,6 +1,12 @@
 import numpy as np
 from scipy import signal, spatial
 
+from skimage.measure import ransac
+from skimage.transform import FundamentalMatrixTransform
+
+# TODO: compare to my custom function
+# from skimage.feature import match_descriptors
+
 # Parameters
 
 sobel_y = np.array([[1, 2, 1],[0,0,0],[-1,-2,-1]])
@@ -62,3 +68,16 @@ def match_descriptors(query_desc, database_desc, match_lambda=4):
     v, idx = np.unique(mins, return_index=True)
     stacked = np.vstack([idx, v])
     return stacked[:,np.all(stacked != -1, axis=0)].T
+
+
+def get_fundamental_matrix(keypoints_query, keypoints_db, max_trials=2000):
+    matches = (keypoints_db, keypoints_query)
+    model, inliers = ransac(
+        matches,
+        FundamentalMatrixTransform,
+        min_samples=8,
+        max_trials=max_trials,
+        residual_threshold=0.1
+    )
+    query_inliers, db_inliers = keypoints_query[inliers], keypoints_db[inliers]
+    return model, query_inliers, db_inliers
