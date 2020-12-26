@@ -20,10 +20,20 @@ def plot_frame_shift(ax, im, query_inliers, db_inliers):
     # show their paths in the new image
     ax.plot(x, y, "g-")
 
-def plot_point_cloud(ax, camera_pos, P):
-    ax.scatter(P[0] + camera_pos[0], P[1] + camera_pos[1], P[2] + camera_pos[2])
+def plot_landmarks(ax, P):
+    ax.clear()
+    ax.scatter(P[0,:], P[2,:])
 
-def plot_trajectory(ax, camera_pos, P):
-    x_pose = P[0] + camera_pos[0]
-    z_pose = P[2] + camera_pos[2]
-    ax.plot(x_pose, z_pose, 'rx')
+def plot_camera_pose(ax, pose_history):
+    ax.clear()
+    loc = np.array((0., 0., 0.))
+    path_x = [0.]
+    path_z = [0.]
+
+    for R, T in pose_history:
+        shift = -R.T.dot(T)
+        loc += shift
+        path_x.append(loc[0])
+        path_z.append(loc[2])
+
+    ax.plot(path_x, path_z)

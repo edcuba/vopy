@@ -14,7 +14,7 @@ def get_essential_matrix(keypoints_query, keypoints_db, max_trials=2000):
         residual_threshold=0.5
     )
     query_inliers, db_inliers = keypoints_query[inliers], keypoints_db[inliers]
-    return model, query_inliers, db_inliers
+    return model.params, query_inliers, db_inliers
 
 
 def decompose_essential_matrix(E):

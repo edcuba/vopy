@@ -65,3 +65,10 @@ def match_descriptors(query_desc, database_desc, match_lambda=4):
     v, idx = np.unique(mins, return_index=True)
     stacked = np.vstack([idx, v])
     return stacked[:,np.all(stacked != -1, axis=0)].T
+
+
+def transform_coords(db, query):
+    n = db.shape[0]
+    p0 = np.hstack((db, np.ones(n)[:, np.newaxis]))
+    p1 = np.hstack((query, np.ones(n)[:, np.newaxis]))
+    return p0, p1
