@@ -67,8 +67,7 @@ def match_descriptors(query_desc, database_desc, match_lambda=4):
     return stacked[:,np.all(stacked != -1, axis=0)].T
 
 
-def transform_coords(db, query):
-    n = db.shape[0]
-    p0 = np.hstack((db, np.ones(n)[:, np.newaxis])).T
-    p1 = np.hstack((query, np.ones(n)[:, np.newaxis])).T
-    return p0, p1
+def transform_coords(points):
+    n = points.shape[0]
+    p0 = np.hstack((points, np.ones(n)[:, np.newaxis])).T
+    return p0

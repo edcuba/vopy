@@ -27,12 +27,12 @@ def plot_landmarks(ax, P, pose_history):
     path_x = [0.]
     path_z = [0.]
     for R, T in pose_history[start_pose:]:
-        shift = R.T.dot(T)
+        shift = -R.T.dot(T)
         loc += shift
-        path_x.append(loc[1])
-        path_z.append(loc[2])
+        path_x.append(loc[2])
+        path_z.append(loc[1])
 
-    ax.scatter(P[1,:] - loc[1], P[2,:] - loc[2], marker='o', facecolors='none', edgecolors='b')
+    ax.scatter(P[2,:], P[1,:], marker='o', facecolors='none', edgecolors='b')
     ax.plot(path_x, path_z, "rx")
     ax.set_ylim(ymin=-20, ymax=20)
     ax.set_xlim(xmin=-20, xmax=20)
@@ -45,10 +45,10 @@ def plot_camera_pose(ax, pose_history):
     path_z = [0.]
 
     for R, T in pose_history:
-        shift = R.T.dot(T)
+        shift = -R.T.dot(T)
         loc += shift
-        path_x.append(loc[1])
-        path_z.append(loc[2])
+        path_x.append(loc[2])
+        path_z.append(loc[1])
 
     ax.plot(path_x, path_z)
     return loc

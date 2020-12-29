@@ -1,21 +1,32 @@
 import numpy as np
 
 from skimage.measure import ransac
-from skimage.transform import EssentialMatrixTransform
+from skimage.transform import FundamentalMatrixTransform
 
+def normalize_points(points):
+    mu = np.mean(points, axis=1)[:, np.newaxis]
+    centered = points - mu
+    sigma = np.sqrt(np.mean((centered**2).sum()))
+    s = np.sqrt(2) / sigma
+    T = np.array(((s, -s * mu[0]), (s, -s * mu[1])))
+    return T.dot(points.T), T
 
-def get_essential_matrix(keypoints_query, keypoints_db, max_trials=2000):
-    matches = (keypoints_db, keypoints_query)
+def get_essential_matrix(points0, points1, K, max_trials=2000):
+    #p0_norm, t0 = normalize_points(points0)
+    #p1_norm, t1 = normalize_points(points1)
+    matches = (points0, points1)
     model, inliers = ransac(
         matches,
-        EssentialMatrixTransform,
+        FundamentalMatrixTransform,
         min_samples=8,
         max_trials=max_trials,
-        residual_threshold=0.5
+        residual_threshold=0.1
     )
-    query_inliers, db_inliers = keypoints_query[inliers], keypoints_db[inliers]
-    return model.params, query_inliers, db_inliers
-
+    query_inliers, db_inliers = points0[inliers], points1[inliers]
+    #F = t1.T.dot(model.params).dot(t0)
+    F = model.params
+    E = K.T.dot(F).dot(K)
+    return E, db_inliers, query_inliers
 
 def decompose_essential_matrix(E):
     U, _, V = np.linalg.svd(E, full_matrices=True)

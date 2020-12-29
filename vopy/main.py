@@ -11,8 +11,14 @@ from vopy.keypoints import harris, select_keypoints, describe_keypoints, match_d
 from vopy.pose import get_essential_matrix, decompose_essential_matrix, disambiguate_poses, triangulate
 from vopy.plotting import plot_frame_shift, plot_landmarks, plot_camera_pose
 
-DATASET_PATH = "data/parking"
-LAST_FRAME = 598
+kitti = False
+
+if kitti:
+    DATASET_PATH = "data/kitti/00"
+    LAST_FRAME = 999
+else:
+    DATASET_PATH = "data/parking"
+    LAST_FRAME = 598
 
 RADIUS = 9
 RATIO = 1
@@ -32,7 +38,7 @@ def process_image(im, radius=RADIUS, keypoints=400):
 
     return harris_scores, keypoints, descriptors
 
-get_image, ground_truth, K = load_dataset(DATASET_PATH, image_ratio=RATIO)
+get_image, ground_truth, K = load_dataset(DATASET_PATH, image_ratio=RATIO, kitti=kitti)
 
 pose_history = []
 
@@ -54,8 +60,8 @@ origin_prev = np.array((0, 0, 0))
 harris_scores, keypoints, descriptors = process_image(get_image(5))
 dists = match_descriptors(descriptors, d_prev, match_lambda=LAMBDA)
 matched_query, matched_db = keypoints[dists[:,0]], k_prev[dists[:,1]]
-E, query_inliers, db_inliers = get_essential_matrix(matched_query, matched_db, max_trials=RANSAC_TRIALS)
-p0, p1 = transform_coords(db_inliers, query_inliers)
+E, db_inliers, query_inliers = get_essential_matrix(matched_db, matched_query, K, max_trials=RANSAC_TRIALS)
+p0, p1 = transform_coords(db_inliers), transform_coords(query_inliers)
 rots, u3 = decompose_essential_matrix(E)
 R, T, PC1 = disambiguate_poses(rots, u3, p0, p1, K)
 
@@ -77,7 +83,7 @@ for i in range(1, LAST_FRAME+1):
 
     # recover essential matrix
     try:
-        E, query_inliers, db_inliers = get_essential_matrix(matched_query, matched_db, max_trials=RANSAC_TRIALS)
+        E, db_inliers, query_inliers = get_essential_matrix(matched_db, matched_query, K, max_trials=RANSAC_TRIALS)
     except ValueError:
         print(f"Frame {i} failed to localize")
         matched = False
@@ -86,18 +92,21 @@ for i in range(1, LAST_FRAME+1):
         plot_frame_shift(ax_image, im, query_inliers, db_inliers)
         print(f"Frame {i} matched {matched_query.shape[0]}/{keypoints.shape[0]} inliers {query_inliers.shape[0]}")
 
-        p0, p1 = transform_coords(db_inliers, query_inliers)
-
         # get essential matrix
         rots, u3 = decompose_essential_matrix(E)
+
+        p0, p1 = transform_coords(db_inliers), transform_coords(query_inliers)
 
         R, T, PC1 = disambiguate_poses(rots, u3, p0, p1, K)
         pose_history.append((R, T))
 
         plot_camera_pose(ax_full, pose_history)
         plot_landmarks(ax_last20, PC1, pose_history)
-    else:
+
+    if not matched or i % 5 == 0:
         im_prev = im
         h_prev, k_prev, d_prev = harris_scores, keypoints, descriptors
 
     plt.pause(1e-6)
+
+# TODO: use ground truth
