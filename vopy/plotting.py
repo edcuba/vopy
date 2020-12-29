@@ -20,9 +20,23 @@ def plot_frame_shift(ax, im, query_inliers, db_inliers):
     # show their paths in the new image
     ax.plot(x, y, "g-")
 
-def plot_landmarks(ax, P):
+def plot_landmarks(ax, P, pose_history):
     ax.clear()
-    ax.scatter(P[0,:], P[2,:])
+    start_pose = max(0, len(pose_history) - 20)
+    loc = np.array((0., 0., 0.))
+    path_x = [0.]
+    path_z = [0.]
+    for R, T in pose_history[start_pose:]:
+        shift = R.T.dot(T)
+        loc += shift
+        path_x.append(loc[1])
+        path_z.append(loc[2])
+
+    ax.scatter(P[1,:] - loc[1], P[2,:] - loc[2], marker='o', facecolors='none', edgecolors='b')
+    ax.plot(path_x, path_z, "rx")
+    ax.set_ylim(ymin=-20, ymax=20)
+    ax.set_xlim(xmin=-20, xmax=20)
+    # TODO: this needs to be adjusted for rotation, as we are moving to the side, everything is rotated by 90 degs
 
 def plot_camera_pose(ax, pose_history):
     ax.clear()
@@ -31,9 +45,10 @@ def plot_camera_pose(ax, pose_history):
     path_z = [0.]
 
     for R, T in pose_history:
-        shift = -R.T.dot(T)
+        shift = R.T.dot(T)
         loc += shift
-        path_x.append(loc[0])
+        path_x.append(loc[1])
         path_z.append(loc[2])
 
     ax.plot(path_x, path_z)
+    return loc

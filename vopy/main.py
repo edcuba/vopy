@@ -16,7 +16,7 @@ LAST_FRAME = 598
 
 RADIUS = 9
 RATIO = 1
-RANSAC_TRIALS = 1024
+RANSAC_TRIALS = 2000
 LAMBDA = 4
 
 # Parameters to be tuned
@@ -25,7 +25,7 @@ LAMBDA = 4
 #   image ratio = downsampling the image for performance
 #   match lambda = match sensitivity
 
-def process_image(im, radius=RADIUS, keypoints=300):
+def process_image(im, radius=RADIUS, keypoints=400):
     harris_scores = harris(im)
     keypoints = select_keypoints(harris_scores, num_keypoints=keypoints)
     descriptors = describe_keypoints(im, keypoints, desc_radius=radius)
@@ -38,8 +38,12 @@ pose_history = []
 
 fig = plt.figure(figsize=(14, 7))
 ax_image = fig.add_subplot(2, 2, 1)
+
 ax_full = fig.add_subplot(2, 2, 3)
+ax_full.set_aspect('equal', 'datalim')
+
 ax_last20 = fig.add_subplot(1, 2, 2)
+ax_last20.set_aspect('equal', 'datalim')
 
 # initialize the world frame
 im_prev = get_image(0)
@@ -91,13 +95,9 @@ for i in range(1, LAST_FRAME+1):
         pose_history.append((R, T))
 
         plot_camera_pose(ax_full, pose_history)
-        plot_landmarks(ax_last20, PC1)
+        plot_landmarks(ax_last20, PC1, pose_history)
     else:
         im_prev = im
         h_prev, k_prev, d_prev = harris_scores, keypoints, descriptors
 
     plt.pause(1e-6)
-
-# TODO: need unit tests
-#  - select first 2 frames and test against exercise 6 - can load arbitrary pictures
-#  - once that works, only the continuous operation is missing

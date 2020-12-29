@@ -37,23 +37,28 @@ def decompose_essential_matrix(E):
     R = np.array((R1, R2))
     return R, u3
 
-
 def cross_matrix(x):
-    return np.array(((0, -x[2], x[1]), (x[2], 0, -x[0]), (-x[1], x[0], 0)))
-
+    return np.array(
+        ((0., -x[2], x[1]),
+        (x[2], 0., -x[0]),
+        (-x[1], x[0], 0.)),
+        dtype=np.float64
+    )
 
 def triangulate(points0, points1, M1, M2):
-    num_points = points0.shape[0]
+    num_points = points0.shape[1]
     P = np.zeros((4, num_points))
-    for p0, p1, i in zip(points0, points1, range(num_points)):
-        A1 = cross_matrix(p0).dot(M1)
-        A2 = cross_matrix(p1).dot(M2)
+    for i in range(num_points):
+        p0 = points0[:, i]
+        p1 = points1[:, i]
+        c0 = cross_matrix(p0)
+        c1 = cross_matrix(p1)
+        A1 = c0.dot(M1)
+        A2 = c1.dot(M2)
         A = np.vstack((A1, A2))
         _, _, V = np.linalg.svd(A)
-        h = V[:,-1]
-        P[:,i] = h / h[-1]
-    return P
-
+        P[:,i] = V[:,-1]
+    return P / np.tile(P[-1,:], (4, 1))
 
 def disambiguate_poses(rots, u3, points0, points1, K):
     M1 = K.dot(np.eye(3, 4))
