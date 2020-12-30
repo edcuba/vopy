@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 from vopy.pose import triangulate
 
 
@@ -9,15 +10,17 @@ def test_triangulation():
         (14.8799323173627,	3.51276261416305,	7.04250020114030,	4.44699322469679),
         (1,	1,	1,	1)
     ), dtype=np.float64)
-    M1 = np.array(((500., 0., 320., 0.), (0., 500., 240., 0.), (0., 0., 1., 0.)), dtype=np.float64)
-    M2 = np.array(((500., 0., 320., -100.), (0., 500., 240., 0.), (0., 0., 1., 0.)), dtype=np.float64)
+    M0 = np.array(((500., 0., 320., 0.), (0., 500., 240., 0.), (0., 0., 1., 0.)), dtype=np.float64)
+    M1 = np.array(((500., 0., 320., -100.), (0., 500., 240., 0.), (0., 0., 1., 0.)), dtype=np.float64)
+    p0 = M0.dot(P)
     p1 = M1.dot(P)
-    p2 = M2.dot(P)
 
-    assert p1.shape == p2.shape
-    assert p1.shape == (3, 4)
+    assert p0.shape == p1.shape
+    assert p0.shape == (3, 4)
 
-    P_est = triangulate(p1, p2, M1, M2)
+    print(p0)
+
+    P_est = cv2.triangulatePoints(M0, M1, p0, p1)
 
     assert P.shape == P_est.shape
 
