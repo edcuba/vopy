@@ -13,7 +13,9 @@ from vopy.keypoints import harris, select_keypoints, describe_keypoints, match_d
 from vopy.pose import get_essential_matrix, get_pose, triangulate
 from vopy.plotting import plot_frame_shift, plot_landmarks, plot_camera_pose
 
-kitti = False
+
+kitti = True
+lkt = False
 
 if kitti:
     DATASET_PATH = "data/kitti/00"
@@ -21,11 +23,29 @@ if kitti:
     START_FRAME = 50
 else:
     DATASET_PATH = "data/parking"
-    LAST_FRAME = 598
+    LAST_FRAME = 10 #598
     START_FRAME = 0
 
+INIT_FRAME = START_FRAME + 2
 RADIUS = 9
 LAMBDA = 4
+KEYPOINTS = 250
+
+if lkt:
+    RADIUS = 7
+
+lkt_flow = {
+    "winSize": (2 * RADIUS + 1, 2 * RADIUS + 1),
+    "maxLevel": 2,
+    "criteria": (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03)
+}
+
+lkt_features = {
+    "maxCorners": KEYPOINTS,
+    "qualityLevel": 0.5,
+    "minDistance": RADIUS,
+    "blockSize": RADIUS
+}
 
 # Parameters to be tuned
 #   descriptor radius = patch size
@@ -33,12 +53,9 @@ LAMBDA = 4
 #   image ratio = downsampling the image for performance
 #   match lambda = match sensitivity
 
-def process_image(im, radius=RADIUS, keypoints=300):
+def process_image(im, keypoints=KEYPOINTS):
     harris_scores = harris(im)
-    keypoints = select_keypoints(harris_scores, num_keypoints=keypoints)
-    descriptors = describe_keypoints(im, keypoints, desc_radius=radius)
-
-    return harris_scores, keypoints, descriptors
+    return select_keypoints(harris_scores, num_keypoints=keypoints)
 
 get_image, ground_truth, K = load_dataset(DATASET_PATH, kitti=kitti)
 
@@ -55,32 +72,47 @@ ax_last20.set_aspect('equal', 'datalim')
 
 # initialize the world frame
 im_prev = get_image(START_FRAME)
-h_prev, k_prev, d_prev = process_image(im_prev)
-origin_prev = np.array((0, 0, 0))
 
-# use 5th frame to triangulate the initial point cloud
-harris_scores, keypoints, descriptors = process_image(get_image(START_FRAME+5))
-dists = match_descriptors(descriptors, d_prev, match_lambda=LAMBDA)
-matched_query, matched_db = keypoints[dists[:,0]], k_prev[dists[:,1]]
-E, mask = get_essential_matrix(matched_db, matched_query, K)
-p0_in, p1_in = matched_db[mask], matched_query[mask]
-
-R, T = get_pose(E, p0_in, p1_in, K)
-pose_history.append((R, R.dot(T)))
-
-for i in range(START_FRAME, LAST_FRAME+1):
-    print(f"Frame {i}")
-
-    matched = True
-
-    im = get_image(i)
-    harris_scores, keypoints, descriptors = process_image(im)
-
-    # match descriptors between images
+if lkt:
+    im_prev_t = im_prev.T # openCV is C++
+    p_prev = cv2.goodFeaturesToTrack(im_prev_t, mask = None, **lkt_features)
+else:
+    k_prev = process_image(im_prev)
+    d_prev = describe_keypoints(im_prev, k_prev, desc_radius=RADIUS)
+    im = get_image(INIT_FRAME)
+    keypoints = process_image(im)
+    descriptors = describe_keypoints(im, keypoints, desc_radius=RADIUS)
     dists = match_descriptors(descriptors, d_prev, match_lambda=LAMBDA)
-
-    # matches in the query and db image
     matched_query, matched_db = keypoints[dists[:,0]], k_prev[dists[:,1]]
+    E, mask = get_essential_matrix(matched_db, matched_query, K)
+    p0_in, p1_in = matched_db[mask], matched_query[mask]
+    R, T = get_pose(E, p0_in, p1_in, K)
+    pose_history.append((R, R.dot(T)))
+
+for i in range(INIT_FRAME + 1, LAST_FRAME + 1):
+    im = get_image(i)
+
+    if lkt:
+        im_t = im.T # openCV is C++
+        if p_prev.shape[0] < 50:
+            p_prev = cv2.goodFeaturesToTrack(im_prev_t, mask = None, **lkt_features)
+        p_query, st, _ = cv2.calcOpticalFlowPyrLK(im_prev_t, im_t, p_prev, None, **lkt_flow)
+        matched_db = p_prev[st == 1]
+        matched_query = p_query[st == 1]
+        im_prev_t = im_t
+    else:
+        keypoints = process_image(im)
+        descriptors = describe_keypoints(im, keypoints, desc_radius=RADIUS)
+
+        # match descriptors between images
+        dists = match_descriptors(descriptors, d_prev, match_lambda=LAMBDA)
+
+        # matches in the query and db image
+        matched_query, matched_db = keypoints[dists[:,0]], k_prev[dists[:,1]]
+        k_prev, d_prev = keypoints, descriptors
+        im_prev = im
+
+    print(f"Frame {i} matches {matched_db.shape[0]}")
 
     E, mask = get_essential_matrix(matched_db, matched_query, K)
     p0_in, p1_in = matched_db[mask], matched_query[mask]
@@ -95,10 +127,11 @@ for i in range(START_FRAME, LAST_FRAME+1):
     plot_camera_pose(ax_full, pose_history)
     plot_landmarks(ax_last20, cloud, pose_history)
 
-    if not matched or i % 3 == 0:
-        im_prev = im
-        h_prev, k_prev, d_prev = harris_scores, keypoints, descriptors
+    if lkt:
+        # update keypoints from the last image
+        p_prev = p1_in.reshape((-1, 1, 2)).astype(np.float32)
 
+    # wait for rendering
     plt.pause(1e-6)
 
 # TODO: use ground truth

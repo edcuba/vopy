@@ -22,7 +22,10 @@ def plot_landmarks(ax, P, pose_history):
     ax.clear()
 
     start_pose = max(0, len(pose_history) - 20)
-    cR, cT = pose_history[-1]
+
+    cR = np.eye(3, 3)
+    cT = np.ones((3, 1))
+
     scale = 1
 
     path_y = [cT[1]]
@@ -46,13 +49,14 @@ def plot_landmarks(ax, P, pose_history):
 def plot_camera_pose(ax, pose_history):
     ax.clear()
 
-    cR, cT = pose_history[0]
+    cR = np.eye(3, 3)
+    cT = np.ones((3, 1))
     scale = 1
 
     path_y = [cT[1]]
     path_z = [cT[2]]
 
-    for R, T in pose_history[1:]:
+    for R, T in pose_history:
         cT = cT + scale * cR.dot(T)
         cR = R.dot(cR)
         path_y.append(cT[1])
