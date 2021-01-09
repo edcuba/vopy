@@ -1,6 +1,6 @@
 ## Visual Odometry pipeline in Python
 
-Vision Algorithms for Mobile Robotics UZH 2020.
+Vision Algorithms for Mobile Robotics UZH HS 2020.
 - Author: Eduard Čuba
 - Course website: http://rpg.ifi.uzh.ch/teaching.html
 
@@ -11,6 +11,7 @@ Vision Algorithms for Mobile Robotics UZH 2020.
 ### Installation
 
 Python 3.7+ is required.
+- quick start: https://youtu.be/DYVdaXcdcCw
 
 ```
 pip3 install virtualenv
