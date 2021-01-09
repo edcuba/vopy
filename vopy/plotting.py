@@ -50,9 +50,9 @@ def plot_matches(ax, match_history):
 
     ax.set_xlabel("Frame")
     ax.set_ylabel("Tracked landmarks")
-    ax.set_title("# tracked over last 50 frames")
+    ax.set_title("# tracked over last 20 frames")
 
-    start_pose = max(0, len(match_history) - 50)
+    start_pose = max(0, len(match_history) - 20)
     frame = [f for f, _ in match_history[start_pose:]]
     matches = [m for _, m in match_history[start_pose:]]
 

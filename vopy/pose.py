@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 def get_essential_matrix(points0, points1, K):
-    E, mask = cv2.findEssentialMat(points1, points0, K, method=cv2.RANSAC, prob=0.999, threshold=2)
+    E, mask = cv2.findEssentialMat(points1, points0, K, method=cv2.RANSAC, prob=0.999, threshold=1)
     return E, mask[:,0].astype(bool)
 
 def get_pose(E, points0, points1, K):

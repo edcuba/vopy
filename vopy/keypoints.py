@@ -1,11 +1,6 @@
 import numpy as np
 from scipy import signal, spatial
 
-# TODO: compare to my custom function
-# from skimage.feature import match_descriptors
-
-# Parameters
-
 sobel_y = np.array([[1, 2, 1],[0,0,0],[-1,-2,-1]])
 sobel_x = sobel_y.T
 
@@ -65,9 +60,3 @@ def match_descriptors(query_desc, database_desc, match_lambda=4):
     v, idx = np.unique(mins, return_index=True)
     stacked = np.vstack([idx, v])
     return stacked[:,np.all(stacked != -1, axis=0)].T
-
-
-def transform_coords(points):
-    n = points.shape[0]
-    p0 = np.hstack((points, np.ones(n)[:, np.newaxis])).T
-    return p0

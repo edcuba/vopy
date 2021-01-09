@@ -9,16 +9,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from vopy.utils import load_dataset
-from vopy.keypoints import harris, select_keypoints, describe_keypoints, match_descriptors, transform_coords
+from vopy.keypoints import harris, select_keypoints, describe_keypoints, match_descriptors
 from vopy.pose import get_essential_matrix, get_pose, triangulate
 from vopy.plotting import plot_frame_shift, plot_landmarks, plot_camera_pose, plot_matches
 
-kitti = True
-lkt = True
+kitti = False
+lkt = False
 
 RADIUS = 9
 LAMBDA = 4
-KEYPOINTS = 300
+KEYPOINTS = 350
 
 if kitti:
     DATASET_PATH = "data/kitti/00"
@@ -31,21 +31,21 @@ else:
 
 INIT_FRAME = START_FRAME + 2
 
-
 if lkt:
     RADIUS = 7
 
+
 lkt_flow = {
-    "winSize": (2 * RADIUS + 1, 2 * RADIUS + 1),
-    "maxLevel": 2,
-    "criteria": (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03)
+    "winSize": (3*RADIUS, 3*RADIUS), # search window size
+    "maxLevel": 3,                   # pyramid levels
+    "criteria": (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01)
 }
 
 lkt_features = {
     "maxCorners": KEYPOINTS,
-    "qualityLevel": 0.2,
-    "minDistance": RADIUS,
-    "blockSize": RADIUS
+    "qualityLevel": 0.02,
+    "minDistance": 2 * RADIUS,
+    "blockSize": 2 * RADIUS + 1
 }
 
 # Parameters to be tuned
@@ -58,7 +58,7 @@ def process_image(im, keypoints=KEYPOINTS):
     harris_scores = harris(im)
     return select_keypoints(harris_scores, num_keypoints=keypoints)
 
-get_image, ground_truth, K = load_dataset(DATASET_PATH, kitti=kitti)
+get_image, K = load_dataset(DATASET_PATH, kitti=kitti)
 
 T_history = []
 R_history = []
@@ -75,7 +75,6 @@ ax_full.set_aspect('equal', 'datalim')
 ax_last20 = fig.add_subplot(1, 2, 2)
 ax_last20.set_aspect('equal', 'datalim')
 
-# initialize the world frame
 im_prev = get_image(START_FRAME)
 
 if lkt:
@@ -93,23 +92,17 @@ for i in range(INIT_FRAME, LAST_FRAME + 1):
 
     if lkt:
         im_t = im.T # openCV is C++
-        if p_prev.shape[0] < 200:
+        if p_prev.shape[0] < 250:
             # running out of features, add new keypoints to track
             p_new = cv2.goodFeaturesToTrack(im_prev_t, mask=None, **lkt_features)
-            p_prev = np.unique(np.vstack((p_prev, p_new)), axis=-1)
+            p_prev = p_new
+            # XXX: keeping the old ones requires local-maxima suppression
+            # p_prev = np.unique(np.vstack((p_prev, p_new)), axis=-1)
         p_query, st, _ = cv2.calcOpticalFlowPyrLK(im_prev_t, im_t, p_prev, None, **lkt_flow)
         matched_db = p_prev[st == 1]
         matched_query = p_query[st == 1]
         im_prev_t = im_t
 
-        # get array of dominant pixel motion for each pixel
-        diff = abs(matched_db - matched_query).max(-1)
-        mean_diff = diff.mean()
-
-        if mean_diff < 3:
-            # skip frame (car is stopped?)
-            print(f"Frame {i} skipped, mean pixel difference too small: {mean_diff}")
-            continue
     else:
         keypoints = process_image(im)
         descriptors = describe_keypoints(im, keypoints, desc_radius=RADIUS)
@@ -121,6 +114,15 @@ for i in range(INIT_FRAME, LAST_FRAME + 1):
         matched_query, matched_db = keypoints[dists[:,0]], k_prev[dists[:,1]]
         k_prev, d_prev = keypoints, descriptors
         im_prev = im
+
+    # get array of dominant pixel motion for each pixel
+    diff = abs(matched_db - matched_query).max(-1)
+    mean_diff = diff.mean()
+
+    if mean_diff < 3:
+        # skip frame (car is stopped?)
+        print(f"Frame {i} skipped, mean pixel difference too small: {mean_diff}")
+        continue
 
     match_history.append((i, matched_query.shape[0]))
     plot_matches(ax_matches, match_history)

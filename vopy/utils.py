@@ -4,7 +4,6 @@ from os import path
 
 
 def load_dataset(dataset_path, image_ratio=1, kitti=False):
-    ground_truth = np.loadtxt(path.join(dataset_path, "poses.txt"))
     K = np.loadtxt(path.join(dataset_path, "K.txt"))
     clahe = cv2.createCLAHE(clipLimit=5.0)
 
@@ -15,4 +14,4 @@ def load_dataset(dataset_path, image_ratio=1, kitti=False):
         full_image = cv2.imread(im_path, 0)
         return clahe.apply(full_image)
 
-    return load_image, ground_truth, K
+    return load_image, K
