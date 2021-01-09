@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 def get_essential_matrix(points0, points1, K):
-    E, mask = cv2.findEssentialMat(points1, points0, K, method=cv2.RANSAC, prob=0.999, threshold=1.0)
+    E, mask = cv2.findEssentialMat(points1, points0, K, method=cv2.RANSAC, prob=0.999, threshold=2)
     return E, mask[:,0].astype(bool)
 
 def get_pose(E, points0, points1, K):
@@ -15,9 +15,17 @@ def triangulate(points0, points1, R, T, K):
     RT = np.hstack((R, T))
     M1 = K.dot(RT)
 
-    p0 = points0.T.astype(np.float64)
-    p1 = points1.T.astype(np.float64)
+    points0f = points0.T.astype(np.float32)
+    points1f = points1.T.astype(np.float32)
+    points4d_hom = cv2.triangulatePoints(M0, M1, points0f, points1f)
 
-    triangulated = cv2.triangulatePoints(M0, M1, p0, p1)
+    # dehomogenize the points
+    points4d_hom_good = points4d_hom[:,points4d_hom[3] != 0]
+    points4d = points4d_hom_good / points4d_hom_good[3]
 
-    return triangulated[:3,:].T
+    points3d = points4d[:3,:].T
+
+    # reject points behind the camera frame
+    points3d_good = points3d[points3d[:,2] < 0,:]
+
+    return points3d_good

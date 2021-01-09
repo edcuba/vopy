@@ -5,6 +5,8 @@ def plot_frame_shift(ax, im, db_inliers, query_inliers):
     ax.clear()
     ax.imshow(im, cmap='gray')
     ax.plot(db_inliers[:,1], db_inliers[:,0], "rx")
+    ax.set_ylim(ymin=im.shape[0], ymax=0)
+    ax.set_xlim(xmin=0, xmax=im.shape[1])
 
     x_from = db_inliers[:,1]
     x_to = query_inliers[:,1]
@@ -18,48 +20,40 @@ def plot_frame_shift(ax, im, db_inliers, query_inliers):
     # show their paths in the new image
     ax.plot(x, y, "g-")
 
-def plot_landmarks(ax, P, pose_history):
+def plot_landmarks(ax, P, T_history, R_total):
     ax.clear()
+    ax.set_title("Landmarks and last 20 frames trajectory")
 
-    start_pose = max(0, len(pose_history) - 20)
+    start_pose = max(0, len(T_history) - 20)
 
-    cR = np.eye(3, 3)
-    cT = np.ones((3, 1))
+    path_y = [T[1] for T in T_history[start_pose:]]
+    path_z = [T[2] for T in T_history[start_pose:]]
 
-    scale = 1
+    cT = T_history[-1]
 
-    path_y = [cT[1]]
-    path_z = [cT[2]]
-
-    for R, T in pose_history[start_pose:]:
-        cT = cT + scale * cR.dot(T)
-        cR = R.dot(cR)
-        path_y.append(cT[1])
-        path_z.append(cT[2])
-
-    points = - 20 * P.T
+    points = -1 * R_total.dot(P.T)
 
     ax.scatter(points[1,:], points[2,:], marker='o', facecolors='none', edgecolors='b')
     ax.plot(path_y - cT[1], path_z - cT[2], "rx")
-    ax.set_ylim(ymin=-40, ymax=40)
-    ax.set_xlim(xmin=-40, xmax=40)
+    ax.set_ylim(ymin=-50, ymax=50)
+    ax.set_xlim(xmin=-50, xmax=50)
 
-    # TODO: Need to dehomogenize the points
+def plot_camera_pose(ax, T_history):
+    ax.clear()
+    ax.set_title("Full trajectory")
+    path_y = [T[1] for T in T_history]
+    path_z = [T[2] for T in T_history]
+    ax.plot(path_y, path_z)
 
-def plot_camera_pose(ax, pose_history):
+def plot_matches(ax, match_history):
     ax.clear()
 
-    cR = np.eye(3, 3)
-    cT = np.ones((3, 1))
-    scale = 1
+    ax.set_xlabel("Frame")
+    ax.set_ylabel("Tracked landmarks")
+    ax.set_title("# tracked over last 50 frames")
 
-    path_y = [cT[1]]
-    path_z = [cT[2]]
+    start_pose = max(0, len(match_history) - 50)
+    frame = [f for f, _ in match_history[start_pose:]]
+    matches = [m for _, m in match_history[start_pose:]]
 
-    for R, T in pose_history:
-        cT = cT + scale * cR.dot(T)
-        cR = R.dot(cR)
-        path_y.append(cT[1])
-        path_z.append(cT[2])
-
-    ax.plot(path_y, path_z)
+    ax.plot(frame, matches)
